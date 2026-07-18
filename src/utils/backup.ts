@@ -1,6 +1,6 @@
 import type { TripState } from '../types'
 
-export const TRIP_STORAGE_KEY = 'kumamoto-trip-v1'
+export const TRIP_STORAGE_KEY = 'kumamoto-trip-v2'
 export const MODE_STORAGE_KEY = 'kumamoto-app-mode-v1'
 
 export type AppMode = 'plan' | 'go'
