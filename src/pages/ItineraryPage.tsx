@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DayMap } from '../components/DayMap'
-import { useDayDistances } from '../hooks/useDayDistances'
 import type { TripStore } from '../hooks/useTripStore'
 import type { ItemType, ItineraryItem } from '../types'
 import type { AppMode } from '../utils/backup'
 import { resolveTodayDayIndex } from '../utils/backup'
 import { directionsUrl, formatDateLabel, navToUrl } from '../utils/format'
-import { formatKm, formatMinutes } from '../utils/geo'
 import { ITEM_TYPE_LABEL } from '../utils/labels'
 
 interface Props {
@@ -39,12 +36,6 @@ export function ItineraryPage({ store, mode }: Props) {
     () => day.items.filter((i) => i.done).length,
     [day.items],
   )
-
-  const route = useDayDistances(day.items)
-
-  const segmentByFrom = useMemo(() => {
-    return new Map(route.segments.map((s) => [s.fromId, s]))
-  }, [route.segments])
 
   useEffect(() => {
     if (!isGo) return
@@ -128,7 +119,7 @@ export function ItineraryPage({ store, mode }: Props) {
         <p>
           {isGo
             ? '旅途模式：勾選完成・大按鈕導航（編輯請切回規劃）'
-            : '拖曳調整順序 · 編輯／刪除 · Google 導航 · 自動算距離'}
+            : '拖曳調整順序 · 編輯／刪除 · 一鍵開 Google Maps 導航'}
         </p>
       </header>
 
@@ -168,8 +159,15 @@ export function ItineraryPage({ store, mode }: Props) {
       ) : (
         <div className="item-list">
           {day.items.map((item, index) => {
-            const seg = segmentByFrom.get(item.id)
             const dest = placeQuery(item)
+            const next = day.items[index + 1]
+            const nextPlace = next ? placeQuery(next) : ''
+            const showLeg =
+              Boolean(dest) &&
+              Boolean(nextPlace) &&
+              dest !== nextPlace &&
+              item.type !== 'flight' &&
+              next?.type !== 'flight'
             const isDragging = dragIndex === index
             const isOver = overIndex === index && dragIndex !== index
             return (
@@ -268,26 +266,17 @@ export function ItineraryPage({ store, mode }: Props) {
                     )}
                   </div>
                 </article>
-                {seg && (
+                {showLeg && (
                   <div className="leg-distance">
                     <span className="leg-line" aria-hidden />
                     <a
                       className="leg-badge leg-nav"
-                      href={directionsUrl(seg.fromQuery, seg.toQuery)}
+                      href={directionsUrl(dest, nextPlace)}
                       target="_blank"
                       rel="noreferrer"
-                      title="在 Google Maps 導航這段路"
+                      title="在 Google Maps 看這段路線與車程"
                     >
-                      {seg.driveKm != null ? (
-                        <>
-                          導航 · 車程 {formatKm(seg.driveKm)}
-                          {seg.driveMinutes != null &&
-                            ` · ${formatMinutes(seg.driveMinutes)}`}
-                          {!isGo && <em>直線 {formatKm(seg.straightKm)}</em>}
-                        </>
-                      ) : (
-                        <>導航 · 直線 {formatKm(seg.straightKm)}</>
-                      )}
+                      這段路線（Google Maps）
                     </a>
                     <span className="leg-line" aria-hidden />
                   </div>
@@ -296,16 +285,6 @@ export function ItineraryPage({ store, mode }: Props) {
             )
           })}
         </div>
-      )}
-
-      {!isGo && (
-        <DayMap
-          points={route.points}
-          segments={route.segments}
-          loading={route.loading}
-          error={route.error}
-          missing={route.missing}
-        />
       )}
 
       {!isGo && (
